@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamDiscovery - บริการค้นพบภาพยนตร์</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS: ออกแบบให้ดูพรีเมียมและเป็น Dark Mode */
+        :root {
+            --dark-bg: #141414;
+            --card-bg: #242424;
+            --accent-color: #e50914; /* แดง */
+            --text-color: #ffffff;
+            --light-gray: #aaa;
+            --font-family: 'Kanit', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Header และ Navigation */
+        .header {
+            background-color: #0c0c0c;
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* Search Bar */
+        .search-container {
+            position: relative;
+        }
+        #search-input {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid var(--accent-color);
+            background-color: #333;
+            color: var(--text-color);
+            width: 300px;
+            transition: width 0.3s;
+        }
+        #search-input:focus {
+            width: 350px;
+            outline: none;
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 40px;
+        }
+        h2 {
+            color: var(--text-color);
+            border-left: 5px solid var(--accent-color);
+            padding-left: 10px;
+            margin-bottom: 25px;
+        }
+        
+        /* Movie Grid */
+        #movies-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+        }
+        .movie-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.6);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            height: 450px; /* กำหนดความสูงคงที่ */
+            display: flex;
+            flex-direction: column;
+        }
+        .movie-card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.8);
+        }
+        .movie-card img {
+            width: 100%;
+            height: 300px; /* ความสูงของโปสเตอร์ */
+            object-fit: cover;
+            display: block;
+        }
+        .movie-info {
+            padding: 15px;
+            text-align: left;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .movie-info h3 {
+            margin: 0;
+            font-size: 1.1em;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+        }
+        .rating {
+            font-size: 0.9em;
+            color: #ffc107; /* สีดาว */
+            margin-top: 5px;
+        }
+
+        /* Modal (หน้าต่างแสดงรายละเอียด) */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+            padding-top: 50px;
+        }
+        .modal-content {
+            background-color: var(--card-bg);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 900px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+        .close-btn {
+            color: var(--light-gray);
+            float: right;
+            font-size: 35px;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .close-btn:hover,
+        .close-btn:focus {
+            color: var(--accent-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .modal-details {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .modal-details img {
+            width: 250px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .movie-text {
+            flex-grow: 1;
+        }
+        .movie-text h2 {
+            margin-top: 0;
+            border: none;
+        }
+        .trailer-container {
+            margin-top: 20px;
+        }
+        .trailer-container iframe {
+            width: 100%;
+            height: 450px;
+            border-radius: 8px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: var(--light-gray);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">StreamDiscovery</div>
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="ค้นหาภาพยนตร์..." onkeyup="handleSearch(event)">
+        </div>
+    </div>
+
+    <div class="main-content">
+        <h2 id="section-title">🎬 ภาพยนตร์ยอดนิยม</h2>
+        <div id="movies-container">
+            <p class="loading">กำลังโหลดข้อมูล...</p>
+        </div>
+    </div>
+
+    <div id="movie-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modal-body">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // *** 1. ตั้งค่า API และ URL พื้นฐาน ***
+        const API_KEY = 'YOUR_TMDB_API_KEY'; // <--- **แทนที่ด้วย TMDB API Key ของคุณ**
+        const BASE_URL = 'https://api.themoviedb.org/3';
+        const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/';
+        const LANG = 'th-TH'; // ภาษาไทย
+
+        const moviesContainer = document.getElementById('movies-container');
+        const sectionTitle = document.getElementById('section-title');
+        const modal = document.getElementById('movie-modal');
+        const modalBody = document.getElementById('modal-body');
+
+        // *** 2. ฟังก์ชันหลัก: ดึงข้อมูลภาพยนตร์ ***
+        async function fetchMovies(endpoint, title) {
+            moviesContainer.innerHTML = '<p class="loading">กำลังโหลดข้อมูล...</p>';
+            sectionTitle.textContent = title;
+
+            const url = `${BASE_URL}${endpoint}?api_key=${API_KEY}&language=${LANG}&page=1`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                displayMovies(data.results);
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+                moviesContainer.innerHTML = '<p class="loading">ไม่สามารถดึงข้อมูลได้: กรุณาตรวจสอบ API Key หรือการเชื่อมต่อ</p>';
+            }
+        }
+
+        // *** 3. ฟังก์ชันแสดงผลภาพยนตร์ (Card View) ***
+        function displayMovies(movies) {
+            moviesContainer.innerHTML = '';
+            if (movies.length === 0) {
+                moviesContainer.innerHTML = '<p class="loading">ไม่พบผลลัพธ์</p>';
+                return;
+            }
+
+            movies.forEach(movie => {
+                const movieCard = document.createElement('div');
+                movieCard.classList.add('movie-card');
+                movieCard.onclick = () => fetchMovieDetails(movie.id); // เมื่อคลิก ให้ดึงรายละเอียด
+                
+                // ใช้ w500 สำหรับโปสเตอร์บน Card
+                const posterPath = movie.poster_path 
+                    ? `${IMAGE_BASE_URL}w500${movie.poster_path}`
+                    : 'https://via.placeholder.com/200x300?text=No+Poster';
+
+                const rating = movie.vote_average ? `${movie.vote_average.toFixed(1)}/10` : 'N/A';
+
+                movieCard.innerHTML = `
+                    <img src="${posterPath}" alt="${movie.title || movie.name} Poster">
+                    <div class="movie-info">
+                        <h3>${movie.title || movie.name}</h3>
+                        <p class="rating">⭐ ${rating}</p>
+                    </div>
+                `;
+                moviesContainer.appendChild(movieCard);
+            });
+        }
+
+        // *** 4. ฟังก์ชันค้นหา ***
+        function handleSearch(event) {
+            const query = event.target.value.trim();
+            
+            // ค้นหาเมื่อกด Enter หรือเมื่อมีการพิมพ์อย่างน้อย 3 ตัวอักษร
+            if ((event.key === 'Enter' || (event.type === 'keyup' && query.length >= 3)) && query !== "") {
+                const endpoint = `/search/movie`;
+                const title = `🔎 ผลการค้นหา: "${query}"`;
+                
+                const url = `${BASE_URL}${endpoint}?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=${LANG}&page=1`;
+                
+                fetchMovies(url, title);
+            } else if (query === "" && event.type === 'keyup') {
+                // ถ้าล้างช่องค้นหา ให้กลับไปแสดงรายการยอดนิยม
+                fetchMovies('/movie/popular', '🎬 ภาพยนตร์ยอดนิยม');
+            }
+        }
+        
+        // *** 5. ฟังก์ชันดึงรายละเอียดภาพยนตร์และวิดีโอตัวอย่าง ***
+        async function fetchMovieDetails(movieId) {
+            modalBody.innerHTML = '<p class="loading">กำลังโหลดรายละเอียด...</p>';
+            modal.style.display = "block"; // เปิด Modal
+
+            // ดึงข้อมูลหลัก
+            const detailsUrl = `${BASE_URL}/movie/${movieId}?api_key=${API_KEY}&language=${LANG}`;
+            // ดึงข้อมูลวิดีโอ
+            const videosUrl = `${BASE_URL}/movie/${movieId}/videos?api_key=${API_KEY}`;
+
+            try {
+                const [detailsResponse, videosResponse] = await Promise.all([
+                    fetch(detailsUrl),
+                    fetch(videosUrl)
+                ]);
+
+                const details = await detailsResponse.json();
+                const videos = await videosResponse.json();
+
+                // ค้นหาวิดีโอที่เป็น Trailer หลักจาก YouTube
+                const trailer = videos.results.find(vid => vid.site === 'YouTube' && vid.type === 'Trailer') || videos.results[0];
+                
+                displayMovieDetails(details, trailer);
+
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงรายละเอียด:", error);
+                modalBody.innerHTML = '<p class="loading">ไม่สามารถโหลดรายละเอียดภาพยนตร์ได้</p>';
+            }
+        }
+
+        // *** 6. ฟังก์ชันแสดงรายละเอียดใน Modal ***
+        function displayMovieDetails(details, trailer) {
+            // ใช้ w780 สำหรับโปสเตอร์ขนาดใหญ่ใน Modal
+            const posterPath = details.poster_path 
+                ? `${IMAGE_BASE_URL}w500${details.poster_path}`
+                : 'https://via.placeholder.com/250x375?text=No+Poster';
+
+            const genres = details.genres ? details.genres.map(g => g.name).join(', ') : 'N/A';
+            const runtime = details.runtime ? `${Math.floor(details.runtime / 60)} ชม. ${details.runtime % 60} นาที` : 'N/A';
+            const trailerEmbed = trailer 
+                ? `<iframe src="https://www.youtube.com/embed/${trailer.key}" frameborder="0" allowfullscreen></iframe>`
+                : '<p style="color:red;">ไม่พบวิดีโอตัวอย่าง</p>';
+            
+            modalBody.innerHTML = `
+                <div class="modal-details">
+                    <img src="${posterPath}" alt="${details.title} Poster">
+                    <div class="movie-text">
+                        <h2>${details.title}</h2>
+                        <p><strong>วันที่เข้าฉาย:</strong> ${details.release_date || 'N/A'}</p>
+                        <p><strong>แนว:</strong> ${genres}</p>
+                        <p><strong>ความยาว:</strong> ${runtime}</p>
+                        <p><strong>คะแนน TMDB:</strong> ⭐ ${details.vote_average.toFixed(1)}/10 (${details.vote_count} โหวต)</p>
+                        <br>
+                        <h3>เรื่องย่อ</h3>
+                        <p>${details.overview || 'ไม่มีเรื่องย่อภาษาไทย'}</p>
+                    </div>
+                </div>
+                <div class="trailer-container">
+                    <h3>ตัวอย่างภาพยนตร์ (Trailer)</h3>
+                    ${trailerEmbed}
+                </div>
+            `;
+        }
+
+        // *** 7. ฟังก์ชันปิด Modal ***
+        function closeModal() {
+            modal.style.display = "none";
+            // หยุดวิดีโอเมื่อปิด Modal (ถ้ามี)
+            modalBody.innerHTML = '';
+        }
+
+        // ปิด Modal เมื่อคลิกนอกหน้าต่าง
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // เริ่มต้นโหลดภาพยนตร์ยอดนิยมเมื่อหน้าเว็บเปิด
+        fetchMovies('/movie/popular', '🎬 ภาพยนตร์ยอดนิยม');
+    </script>
+</body>
+</html>
